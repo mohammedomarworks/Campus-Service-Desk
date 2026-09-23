@@ -1,0 +1,264 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TicketStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  CANCELLED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id            String   @id @default(dbgenerated("pg_catalog.gen_random_uuid()")) @db.Uuid
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  role          String   @default("STUDENT")
+  isActive      Boolean  @default(true)
+
+  sessions Session[]
+  accounts Account[]
+
+  reportedTickets Ticket[] @relation("ReportedTickets")
+  assignedTickets Ticket[] @relation("AssignedTickets")
+
+  comments    Comment[]
+  attachments Attachment[]
+  resolutions Resolution[]
+
+  statusChanges TicketStatusHistory[] @relation("StatusChangedBy")
+
+  assignmentsReceived AssignmentHistory[] @relation("AssignedStaff")
+  assignmentsMade     AssignmentHistory[] @relation("AssignedBy")
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(dbgenerated("pg_catalog.gen_random_uuid()")) @db.Uuid
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String   @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id         String @id @default(dbgenerated("pg_catalog.gen_random_uuid()")) @db.Uuid
+  accountId  String
+  providerId String
+  userId     String @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(dbgenerated("pg_catalog.gen_random_uuid()")) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tickets Ticket[]
+
+  @@map("category")
+}
+
+model Location {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  building  String?
+  floor     String?
+  room      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickets Ticket[]
+
+  @@index([building])
+  @@index([room])
+  @@map("location")
+}
+
+model Ticket {
+  id           String         @id @default(uuid()) @db.Uuid
+  ticketNumber String         @unique
+  title        String
+  description  String
+  status       TicketStatus   @default(OPEN)
+  priority     TicketPriority @default(MEDIUM)
+
+  reporterId      String  @db.Uuid
+  assignedStaffId String? @db.Uuid
+  categoryId      String  @db.Uuid
+  locationId      String  @db.Uuid
+
+  resolvedAt DateTime?
+  closedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reporter      User  @relation("ReportedTickets", fields: [reporterId], references: [id])
+  assignedStaff User? @relation("AssignedTickets", fields: [assignedStaffId], references: [id])
+
+  category Category @relation(fields: [categoryId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+
+  comments    Comment[]
+  attachments Attachment[]
+  resolutions Resolution[]
+
+  statusHistory     TicketStatusHistory[]
+  assignmentHistory AssignmentHistory[]
+
+  @@index([reporterId])
+  @@index([assignedStaffId])
+  @@index([status])
+  @@index([priority])
+  @@index([categoryId])
+  @@index([locationId])
+  @@index([createdAt])
+  @@map("ticket")
+}
+
+model Comment {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @db.Uuid
+  authorId  String   @db.Uuid
+  content   String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+  @@index([createdAt])
+  @@map("comment")
+}
+
+model Attachment {
+  id           String  @id @default(uuid()) @db.Uuid
+  ticketId     String  @db.Uuid
+  uploaderId   String  @db.Uuid
+  resolutionId String? @db.Uuid
+
+  fileName   String
+  storageKey String
+  mimeType   String
+  fileSize   BigInt
+  createdAt  DateTime @default(now())
+
+  ticket     Ticket      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploader   User        @relation(fields: [uploaderId], references: [id])
+  resolution Resolution? @relation("ResolutionEvidence", fields: [resolutionId], references: [id])
+
+  @@index([ticketId])
+  @@index([resolutionId])
+  @@map("attachment")
+}
+
+model Resolution {
+  id          String   @id @default(uuid()) @db.Uuid
+  ticketId    String   @db.Uuid
+  staffId     String   @db.Uuid
+  description String
+  createdAt   DateTime @default(now())
+
+  ticket      Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  staff       User         @relation(fields: [staffId], references: [id])
+  attachments Attachment[] @relation("ResolutionEvidence")
+
+  @@index([ticketId])
+  @@index([staffId])
+  @@index([createdAt])
+  @@map("resolution")
+}
+
+model TicketStatusHistory {
+  id          String        @id @default(uuid()) @db.Uuid
+  ticketId    String        @db.Uuid
+  fromStatus  TicketStatus?
+  toStatus    TicketStatus
+  changedById String        @db.Uuid
+  note        String?
+  createdAt   DateTime      @default(now())
+
+  ticket    Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  changedBy User   @relation("StatusChangedBy", fields: [changedById], references: [id])
+
+  @@index([ticketId])
+  @@index([changedById])
+  @@index([createdAt])
+  @@map("ticket_status_history")
+}
+
+model AssignmentHistory {
+  id           String   @id @default(uuid()) @db.Uuid
+  ticketId     String   @db.Uuid
+  staffId      String   @db.Uuid
+  assignedById String   @db.Uuid
+  createdAt    DateTime @default(now())
+
+  ticket     Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  staff      User   @relation("AssignedStaff", fields: [staffId], references: [id])
+  assignedBy User   @relation("AssignedBy", fields: [assignedById], references: [id])
+
+  @@index([ticketId])
+  @@index([staffId])
+  @@index([assignedById])
+  @@index([createdAt])
+  @@map("assignment_history")
+}
