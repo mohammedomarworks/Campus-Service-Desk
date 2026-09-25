@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 
 import { requireSession } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
@@ -50,6 +51,17 @@ export default async function TicketDetailsPage({
   return (
     <main className="px-6 py-10">
       <div className="mx-auto max-w-4xl">
+        <nav className="mb-6 flex items-center gap-2 text-sm text-gray-500">
+          <Link
+            href="/tickets"
+            className="hover:text-black hover:underline"
+          >
+            My Tickets
+          </Link>
+          <span>&rarr;</span>
+          <span className="font-medium text-gray-900">Ticket Details</span>
+        </nav>
+
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm font-medium text-gray-500">

@@ -12,6 +12,10 @@ export function canCreateTicket(role: string) {
   return role === "STUDENT";
 }
 
+export function canListStudentTickets(role: string) {
+  return role === "STUDENT";
+}
+
 export function canViewTicket(
   viewer: Viewer,
   ticket: TicketAccessRecord,

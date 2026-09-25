@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { TicketStatus } from "@/generated/prisma/client";
 
 export const createTicketSchema = z.object({
   title: z
@@ -23,3 +24,27 @@ export const createTicketSchema = z.object({
 });
 
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
+
+export const ticketListQuerySchema = z.object({
+  page: z.coerce
+    .number({ error: "Page must be a number." })
+    .int("Page must be an integer.")
+    .min(1, "Page must be at least 1.")
+    .default(1),
+
+  limit: z.coerce
+    .number({ error: "Limit must be a number." })
+    .int("Limit must be an integer.")
+    .min(1, "Limit must be at least 1.")
+    .max(100, "Limit cannot exceed 100.")
+    .default(10),
+
+  status: z.preprocess(
+    (val) => (val === "" || val === null || val === undefined ? undefined : val),
+    z.nativeEnum(TicketStatus, {
+      error: "Status must be a valid ticket status.",
+    }).optional(),
+  ),
+});
+
+export type TicketListQueryInput = z.infer<typeof ticketListQuerySchema>;
