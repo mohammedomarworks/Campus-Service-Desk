@@ -159,6 +159,13 @@ The application should use consistent HTTP status codes.
 
 The API must not expose internal error details through `500` responses.
 
+### Validation Status Code Convention
+
+To ensure consistency across endpoints:
+
+* **`400 Bad Request`**: Used for invalid or malformed query parameters, invalid query syntax, or malformed request bodies (e.g. malformed JSON).
+* **`422 Unprocessable Entity`**: Used for validly formed request bodies that fail semantic validation (e.g. invalid field lengths, missing required fields, or unavailable referenced entities).
+
 ---
 
 # 6. Standard Success Response
